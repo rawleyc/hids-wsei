@@ -78,10 +78,8 @@ sudo bash setup.sh
 # 2. verify your log format is supported
 python3 test_parser.py
 
-# 3. start everything
-python3 backend/main.py &     # daemon polls every 30s
-node api/server.js &          # REST API on :3001
-npm run dev                   # dashboard on :5173
+# 3. start everything (one command)
+npm start                     # daemon + API + dashboard, labelled output
 ```
 
 > production: `sudo cp hids.service /etc/systemd/system/ && sudo systemctl enable --now hids`
