@@ -109,10 +109,19 @@ else
     ok "api/.env already exists"
 fi
 
-# ── 7. systemd unit hint ──────────────────────────────────────────────────────
+# ── 7. sudoers rule (allows API to restart daemon without password) ───────────
+step "Sudoers rule"
+
+SUDOERS_FILE="/etc/sudoers.d/hids"
+echo "$TARGET_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart hids, /bin/systemctl start hids, /bin/systemctl stop hids" > "$SUDOERS_FILE"
+chmod 440 "$SUDOERS_FILE"
+ok "sudo systemctl restart hids allowed for $TARGET_USER without password"
+
+# ── 8. systemd unit hint ──────────────────────────────────────────────────────
 step "systemd (optional)"
 
 UNIT_DST="/etc/systemd/system/hids.service"
+step "systemd unit"
 if [[ ! -f "$UNIT_DST" ]]; then
     # patch placeholders with real values before copying
     sed \

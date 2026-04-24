@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Terminal as TerminalIcon, X, Download, RotateCw } from 'lucide-react';
+import { Terminal as TerminalIcon, X, Download, RotateCw, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx } from 'clsx';
-import { fetchHealth, HealthResponse } from '../api/client';
+import { fetchHealth, restartAgent, HealthResponse } from '../api/client';
 import { Agent, LogLine } from '../types';
 
 type AgentWithLogs = Agent & { logs: LogLine[] };
@@ -10,6 +10,8 @@ type AgentWithLogs = Agent & { logs: LogLine[] };
 export default function SystemHealth() {
   const [health,        setHealth]        = useState<HealthResponse | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
+  const [restarting,    setRestarting]    = useState(false);
+  const [restartMsg,    setRestartMsg]    = useState<string | null>(null);
 
   useEffect(() => {
     fetchHealth().then(setHealth).catch(console.error);
@@ -22,6 +24,34 @@ export default function SystemHealth() {
   const totalCount  = health?.agents_total  ?? 0;
 
   const selectedData = agents.find(a => a.id === selectedAgent);
+
+  const handleRestart = async () => {
+    if (!selectedAgent || restarting) return;
+    setRestarting(true);
+    setRestartMsg(null);
+    try {
+      const res = await restartAgent(selectedAgent);
+      setRestartMsg(res.message);
+    } catch (e: any) {
+      setRestartMsg(e.message ?? 'Restart failed');
+    } finally {
+      setRestarting(false);
+    }
+  };
+
+  const handleDownloadLogs = () => {
+    if (!selectedData) return;
+    const content = selectedData.logs.length > 0
+      ? selectedData.logs.map(l => `[${l.timestamp}] ${l.level} ${l.message}`).join('\n')
+      : 'No logs available.';
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `hids-logs-${selectedAgent}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="flex-1 flex flex-col w-full max-w-[1200px] mx-auto px-4 py-8">
@@ -148,14 +178,29 @@ export default function SystemHealth() {
                 </div>
               </div>
 
-              <div className="p-4 border-t border-gray-200 bg-white flex justify-end gap-3">
-                <button className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                  Download Logs
-                </button>
-                <button className="px-4 py-2 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors shadow-sm flex items-center gap-2">
-                  <RotateCw className="size-4" />
-                  Restart Agent
-                </button>
+              <div className="p-4 border-t border-gray-200 bg-white flex flex-col gap-3">
+                {restartMsg && (
+                  <p className="text-xs text-center text-brand-muted">{restartMsg}</p>
+                )}
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={handleDownloadLogs}
+                    className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+                  >
+                    <Download className="size-4" />
+                    Download Logs
+                  </button>
+                  <button
+                    onClick={handleRestart}
+                    disabled={restarting}
+                    className="px-4 py-2 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors shadow-sm flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {restarting
+                      ? <Loader2 className="size-4 animate-spin" />
+                      : <RotateCw className="size-4" />}
+                    {restarting ? 'Restarting...' : 'Restart Agent'}
+                  </button>
+                </div>
               </div>
             </motion.div>
           </>

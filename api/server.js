@@ -10,7 +10,8 @@ app.use('/api/stats',  require('./routes/stats'));
 app.use('/api/alerts', require('./routes/alerts'));
 app.use('/api/alerts', require('./routes/analyze'));
 app.use('/api/rules',  require('./routes/rules'));
-app.use('/api/health', require('./routes/health'));
+app.use('/api/health',  require('./routes/health'));
+app.use('/api/agents', require('./routes/agents'));
 
 app.use((err, req, res, next) => {
   console.error(err);

@@ -72,3 +72,6 @@ export interface HealthResponse {
 
 export const fetchHealth = () =>
   apiFetch<HealthResponse>('/api/health');
+
+export const restartAgent = (id: string) =>
+  apiFetch<{ success: boolean; message: string }>(`/api/agents/${id}/restart`, { method: 'POST' });
