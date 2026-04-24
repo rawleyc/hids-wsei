@@ -1,0 +1,35 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@theme {
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --color-primary: #1173d4;
+  --color-background-light: #f6f7f8;
+  --color-background-dark: #101922;
+  
+  --color-brand-primary: #0A2540;
+  --color-brand-background: #F7F9FC;
+  --color-brand-surface: #FFFFFF;
+  --color-brand-text: #1E293B;
+  --color-brand-muted: #64748B;
+  --color-brand-critical: #E11D48;
+  --color-brand-warning: #F59E0B;
+  --color-brand-success: #10B981;
+}
+
+@layer base {
+  body {
+    @apply bg-brand-background text-brand-text antialiased;
+  }
+}
+
+.shadow-soft {
+  box-shadow: 0 4px 6px -1px rgba(10, 37, 64, 0.05), 0 2px 4px -1px rgba(10, 37, 64, 0.03);
+}
+
+.shadow-surface {
+  box-shadow: 0 4px 6px -1px rgba(10, 37, 64, 0.05), 0 2px 4px -1px rgba(10, 37, 64, 0.03);
+}

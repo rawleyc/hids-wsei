@@ -1,0 +1,6 @@
+{
+  "name": "HIDS Monitor",
+  "description": "A professional Host Intrusion Detection System dashboard for monitoring alerts, managing detection rules, and tracking agent health across infrastructure.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
