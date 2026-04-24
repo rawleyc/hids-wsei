@@ -59,8 +59,8 @@ fi
 
 if [[ $NODE_OK == false ]]; then
     # NodeSource setup — works on Ubuntu and Kali (Debian-based)
-    curl -fsSL https://deb.nodesource.com/setup_18.x | bash - 2>/dev/null || \
-        fail "NodeSource setup failed. Install Node.js 18+ manually: https://nodejs.org"
+    curl -fsSL https://deb.nodesource.com/setup_22.x | bash - 2>/dev/null || \
+        fail "NodeSource setup failed. Install Node.js 22+ manually: https://nodejs.org"
     apt-get install -y -qq nodejs
     ok "Node.js $(node --version) installed"
 fi
