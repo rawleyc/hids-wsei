@@ -1,0 +1,18 @@
+[Unit]
+Description=HIDS Host-Based Intrusion Detection Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+Group=adm
+WorkingDirectory=/path/to/hids-wsei
+ExecStart=/usr/bin/python3 /path/to/hids-wsei/backend/main.py
+Restart=on-failure
+RestartSec=10s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=hids
+
+[Install]
+WantedBy=multi-user.target

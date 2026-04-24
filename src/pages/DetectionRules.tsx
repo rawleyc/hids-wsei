@@ -1,11 +1,33 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2 } from 'lucide-react';
-import { RULES } from '../constants';
 import { motion } from 'motion/react';
+import { fetchRules, updateRule } from '../api/client';
+import { Rule } from '../types';
 
 export default function DetectionRules() {
+  const [rules,  setRules]  = useState<Rule[]>([]);
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    fetchRules().then(setRules).catch(console.error);
+  }, []);
+
+  const handleToggle = async (rule: Rule) => {
+    try {
+      const updated = await updateRule(rule.id, { active: !rule.active });
+      setRules(prev => prev.map(r => r.id === updated.id ? updated : r));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const filtered = rules.filter(r =>
+    r.name.toLowerCase().includes(search.toLowerCase()) ||
+    r.condition.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="flex-1 w-full max-w-[1200px] mx-auto px-4 py-8"
@@ -20,10 +42,11 @@ export default function DetectionRules() {
       <div className="bg-brand-surface rounded-t-lg border border-[#E2E8F0] border-b-0 p-4 flex flex-col sm:flex-row gap-4 items-center justify-between shadow-surface">
         <div className="relative w-full sm:max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-muted size-5" />
-          <input 
-            className="w-full pl-10 pr-4 py-2 bg-brand-surface border border-[#E2E8F0] rounded-md text-sm text-brand-text focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-sans transition-shadow h-10" 
-            placeholder="Search rules..." 
-            type="text"
+          <input
+            className="w-full pl-10 pr-4 py-2 bg-brand-surface border border-[#E2E8F0] rounded-md text-sm text-brand-text focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-sans transition-shadow h-10"
+            placeholder="Search rules..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
           />
         </div>
         <button className="w-full sm:w-auto bg-brand-primary text-brand-surface font-display font-semibold text-sm px-4 py-2 rounded-md hover:bg-opacity-90 transition-colors flex items-center justify-center gap-2 h-10 shadow-sm">
@@ -43,11 +66,11 @@ export default function DetectionRules() {
                 <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-brand-muted font-sans w-24">Window</th>
                 <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-brand-muted font-sans w-32">Severity</th>
                 <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-brand-muted font-sans w-24 text-center">Active</th>
-                <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-brand-muted font-sans w-20 text-right"></th>
+                <th className="px-6 py-3 w-20 text-right"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E2E8F0] font-sans text-sm">
-              {RULES.map((rule) => (
+              {filtered.map((rule) => (
                 <tr key={rule.id} className="hover:bg-[#F8FAFC] transition-colors group h-16">
                   <td className="px-6 py-3 text-brand-text font-semibold">{rule.name}</td>
                   <td className="px-6 py-3 text-brand-muted font-mono text-[13px]">{rule.condition}</td>
@@ -55,18 +78,16 @@ export default function DetectionRules() {
                   <td className="px-6 py-3 text-brand-muted">{rule.window}</td>
                   <td className="px-6 py-3">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold ${
-                      rule.severity === 'Critical' 
-                        ? 'bg-[#FFF1F2] text-brand-critical' 
-                        : 'bg-[#FFFBEB] text-brand-warning'
-                    }`}>
-                      {rule.severity}
-                    </span>
+                      rule.severity === 'Critical' ? 'bg-[#FFF1F2] text-brand-critical' : 'bg-[#FFFBEB] text-brand-warning'
+                    }`}>{rule.severity}</span>
                   </td>
                   <td className="px-6 py-3 text-center">
-                    <div className="relative inline-block w-9 h-5 align-middle select-none">
-                      <input 
-                        defaultChecked={rule.active} 
-                        className="peer absolute block w-5 h-5 rounded-full bg-white border-2 border-slate-300 appearance-none cursor-pointer checked:translate-x-4 checked:border-brand-success transition-all" 
+                    <div className="relative inline-block w-9 h-5 align-middle select-none"
+                      onClick={() => handleToggle(rule)}>
+                      <input
+                        checked={rule.active}
+                        onChange={() => {}}
+                        className="peer absolute block w-5 h-5 rounded-full bg-white border-2 border-slate-300 appearance-none cursor-pointer checked:translate-x-4 checked:border-brand-success transition-all"
                         type="checkbox"
                       />
                       <label className="block overflow-hidden h-5 rounded-full bg-slate-200 cursor-pointer peer-checked:bg-brand-success transition-colors"></label>
@@ -79,25 +100,32 @@ export default function DetectionRules() {
                   </td>
                 </tr>
               ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-6 py-10 text-center text-brand-muted text-sm">
+                    {rules.length === 0 ? 'Loading rules...' : 'No rules match your search.'}
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
 
-        {/* Mobile View */}
+        {/* Mobile */}
         <div className="md:hidden flex flex-col divide-y divide-[#E2E8F0]">
-          {RULES.map((rule) => (
+          {filtered.map((rule) => (
             <div key={rule.id} className="p-4 flex flex-col gap-3">
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-brand-text font-semibold text-sm mb-1">{rule.name}</h3>
                   <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] uppercase font-bold ${
                     rule.severity === 'Critical' ? 'bg-[#FFF1F2] text-brand-critical' : 'bg-[#FFFBEB] text-brand-warning'
-                  }`}>
-                    {rule.severity}
-                  </span>
+                  }`}>{rule.severity}</span>
                 </div>
-                <div className="relative inline-block w-9 h-5 align-middle select-none">
-                  <input defaultChecked={rule.active} className="peer absolute block w-5 h-5 rounded-full bg-white border-2 border-slate-300 appearance-none cursor-pointer checked:translate-x-4 checked:border-brand-success transition-all" type="checkbox" />
+                <div className="relative inline-block w-9 h-5 align-middle select-none" onClick={() => handleToggle(rule)}>
+                  <input checked={rule.active} onChange={() => {}}
+                    className="peer absolute block w-5 h-5 rounded-full bg-white border-2 border-slate-300 appearance-none cursor-pointer checked:translate-x-4 checked:border-brand-success transition-all"
+                    type="checkbox" />
                   <label className="block overflow-hidden h-5 rounded-full bg-slate-200 cursor-pointer peer-checked:bg-brand-success transition-colors"></label>
                 </div>
               </div>
@@ -109,9 +137,7 @@ export default function DetectionRules() {
                   <span>THRE: {rule.threshold}</span>
                   <span>WIN: {rule.window}</span>
                 </div>
-                <button className="text-primary font-semibold flex items-center gap-1">
-                   Edit
-                </button>
+                <button className="text-primary font-semibold flex items-center gap-1">Edit</button>
               </div>
             </div>
           ))}

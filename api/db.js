@@ -1,0 +1,11 @@
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
+const Database = require('better-sqlite3');
+const dbPath   = path.resolve(__dirname, process.env.DB_PATH || '../hids.db');
+
+const db = new Database(dbPath, { fileMustExist: false });
+db.pragma('journal_mode = WAL');
+db.pragma('foreign_keys = ON');
+
+module.exports = db;
