@@ -37,7 +37,9 @@ if ! command -v apt-get &>/dev/null; then
     fail "apt not found. This script targets Ubuntu/Debian. Install manually: sqlite3 python3 nodejs (>=18) npm"
 fi
 
-apt-get update -qq
+# clean any corrupted cached lists before update (common on Kali rolling)
+rm -f /var/lib/apt/lists/*.lz4 /var/lib/apt/lists/*.gz 2>/dev/null || true
+apt-get update -qq 2>/dev/null || warn "apt update completed with warnings — continuing"
 apt-get install -y -qq sqlite3 python3 curl build-essential
 ok "sqlite3  python3  curl  build-essential"
 
@@ -46,17 +48,19 @@ step "Node.js"
 
 NODE_OK=false
 if command -v node &>/dev/null; then
-    NODE_MAJOR=$(node -e "process.stdout.write(String(process.versions.node.split('.')[0]))")
-    if [[ $NODE_MAJOR -ge 18 ]]; then
+    NODE_MAJOR=$(node --version 2>/dev/null | grep -oP '(?<=v)\d+' | head -1 || echo 0)
+    if [[ ${NODE_MAJOR:-0} -ge 18 ]]; then
         ok "Node.js $(node --version) already installed"
         NODE_OK=true
     else
-        warn "Node.js $NODE_MAJOR detected — need >=18. Upgrading via NodeSource..."
+        warn "Node.js ${NODE_MAJOR:-unknown} detected — need >=18. Upgrading via NodeSource..."
     fi
 fi
 
 if [[ $NODE_OK == false ]]; then
-    curl -fsSL https://deb.nodesource.com/setup_18.x | bash - >/dev/null 2>&1
+    # NodeSource setup — works on Ubuntu and Kali (Debian-based)
+    curl -fsSL https://deb.nodesource.com/setup_18.x | bash - 2>/dev/null || \
+        fail "NodeSource setup failed. Install Node.js 18+ manually: https://nodejs.org"
     apt-get install -y -qq nodejs
     ok "Node.js $(node --version) installed"
 fi
