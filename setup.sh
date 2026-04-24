@@ -49,16 +49,17 @@ step "Node.js"
 NODE_OK=false
 if command -v node &>/dev/null; then
     NODE_MAJOR=$(node --version 2>/dev/null | grep -oP '(?<=v)\d+' | head -1 || echo 0)
-    if [[ ${NODE_MAJOR:-0} -ge 18 ]]; then
+    if [[ ${NODE_MAJOR:-0} -ge 22 ]]; then
         ok "Node.js $(node --version) already installed"
         NODE_OK=true
     else
-        warn "Node.js ${NODE_MAJOR:-unknown} detected — need >=18. Upgrading via NodeSource..."
+        warn "Node.js ${NODE_MAJOR:-unknown} detected — need >=22. Upgrading via NodeSource..."
     fi
 fi
 
 if [[ $NODE_OK == false ]]; then
-    # NodeSource setup — works on Ubuntu and Kali (Debian-based)
+    # remove any older system nodejs before installing from NodeSource
+    apt-get remove -y -qq nodejs 2>/dev/null || true
     curl -fsSL https://deb.nodesource.com/setup_22.x | bash - 2>/dev/null || \
         fail "NodeSource setup failed. Install Node.js 22+ manually: https://nodejs.org"
     apt-get install -y -qq nodejs
