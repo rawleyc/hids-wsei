@@ -1,13 +1,14 @@
 import re
+import json
 from datetime import datetime
 
-# Strip log prefix (supports both traditional syslog and RFC 5424 formats)
+# Syslog line prefix — supports traditional (Apr 23 14:32:01) and RFC 5424 ISO timestamps
 _SYSLOG_PREFIX = re.compile(
     r'^(?:\d{4}-\d{2}-\d{2}T[\d:.+Z-]+|\w{3}\s+\d{1,2}\s+[\d:]+)'
     r'\s+\S+\s+(?P<process>\S+)\[(?P<pid>\d+)\]:\s+(?P<msg>.+)$'
 )
 
-# Auth.log message patterns
+# Message-level patterns (shared by file and journald parsers)
 _FAILED   = re.compile(r'Failed \w+ for (?:invalid user )?(?P<user>\S+) from (?P<ip>[\d.]+)')
 _ACCEPTED = re.compile(r'Accepted \w+ for (?P<user>\S+) from (?P<ip>[\d.]+)')
 _INVALID  = re.compile(r'Invalid user (?P<user>\S+) from (?P<ip>[\d.]+)')
@@ -19,15 +20,10 @@ def _now_iso() -> str:
     return datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
 
 
-def parse_auth_log(raw_line: str) -> dict | None:
-    m = _SYSLOG_PREFIX.match(raw_line)
-    if not m:
-        return None
+# ── Core classifiers (shared by both file and journald paths) ─────────────────
 
-    process = m.group('process')
-    pid     = m.group('pid')
-    msg     = m.group('msg')
-
+def _classify_auth(process: str, pid: str, msg: str) -> dict | None:
+    """Classify an auth-related message into a normalized event dict."""
     if 'sshd' in process:
         for regex, event_type, severity in [
             (_FAILED,   'failed_login',  'Warning'),
@@ -64,7 +60,7 @@ def parse_auth_log(raw_line: str) -> dict | None:
                 'processId':  pid,
             }
 
-    elif 'useradd' in process:
+    elif 'useradd' in process or 'userdel' in process:
         fm = _USERADD.search(msg)
         if fm:
             return {
@@ -80,12 +76,8 @@ def parse_auth_log(raw_line: str) -> dict | None:
     return None
 
 
-def parse_syslog(raw_line: str) -> dict | None:
-    m = _SYSLOG_PREFIX.match(raw_line)
-    if not m:
-        return None
-    # Only surface lines that contain security-relevant keywords
-    msg = m.group('msg')
+def _classify_syslog(process: str, pid: str, msg: str) -> dict | None:
+    """Classify a syslog-style message — surfaces security-relevant keywords only."""
     if any(k in msg.lower() for k in ('error', 'fail', 'denied', 'attack', 'invalid')):
         return {
             'event_time': _now_iso(),
@@ -94,14 +86,80 @@ def parse_syslog(raw_line: str) -> dict | None:
             'user':       '',
             'ip':         '',
             'severity':   'Info',
-            'processId':  m.group('pid'),
+            'processId':  pid,
         }
     return None
 
 
+# ── File-based parsers ────────────────────────────────────────────────────────
+
+def parse_auth_log(raw_line: str) -> dict | None:
+    m = _SYSLOG_PREFIX.match(raw_line)
+    if not m:
+        return None
+    return _classify_auth(m.group('process'), m.group('pid'), m.group('msg'))
+
+
+def parse_syslog(raw_line: str) -> dict | None:
+    m = _SYSLOG_PREFIX.match(raw_line)
+    if not m:
+        return None
+    return _classify_syslog(m.group('process'), m.group('pid'), m.group('msg'))
+
+
+# ── journald parser ───────────────────────────────────────────────────────────
+
+# Processes that belong to the auth domain
+_AUTH_PROCS = frozenset({'sshd', 'sudo', 'su', 'useradd', 'userdel', 'groupadd', 'groupdel', 'login'})
+
+
+def parse_journald_entry(json_str: str) -> dict | None:
+    """
+    Parse a structured journald JSON entry (from journalctl -o json).
+
+    journald gives us pre-split fields (SYSLOG_IDENTIFIER, _PID, MESSAGE)
+    so we feed them directly into the shared classifiers — no regex prefix needed.
+    """
+    try:
+        entry = json.loads(json_str)
+    except (json.JSONDecodeError, ValueError):
+        return None
+
+    # MESSAGE may be binary-encoded as a list of ints
+    message = entry.get('MESSAGE', '')
+    if isinstance(message, list):
+        message = ''.join(chr(b) for b in message if isinstance(b, int) and 0 <= b < 128)
+    message = str(message).strip()
+    if not message:
+        return None
+
+    comm = (entry.get('SYSLOG_IDENTIFIER') or entry.get('_COMM', '')).strip()
+    pid  = str(entry.get('_PID', '0'))
+
+    # Route to auth classifier first for known auth processes
+    if any(p in comm for p in _AUTH_PROCS):
+        result = _classify_auth(comm, pid, message)
+        if result:
+            return result
+
+    # Fall through to syslog classifier (catches kernel / systemd / other daemons)
+    return _classify_syslog(comm, pid, message)
+
+
+# ── Unified entry point ───────────────────────────────────────────────────────
+
 def parse_line(source_file: str, raw_line: str) -> dict | None:
-    if 'auth' in source_file:
+    """
+    Route a raw log line to the correct parser based on its source.
+
+      source_file == 'journald'                → parse_journald_entry
+      auth.log / secure (RHEL auth log)        → parse_auth_log
+      syslog / messages / kern.log             → parse_syslog
+    """
+    if source_file == 'journald':
+        return parse_journald_entry(raw_line)
+    if 'auth' in source_file or 'secure' in source_file:
         return parse_auth_log(raw_line)
-    elif 'syslog' in source_file:
+    if any(k in source_file for k in ('syslog', 'messages', 'kern')):
         return parse_syslog(raw_line)
     return None

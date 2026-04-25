@@ -72,8 +72,17 @@ ok "npm $(npm --version)"
 step "Log file permissions"
 
 usermod -aG adm "$TARGET_USER"
-ok "$TARGET_USER added to 'adm' group"
-warn "Re-login (or run 'newgrp adm') for /var/log/auth.log access to take effect"
+ok "$TARGET_USER added to 'adm' group (file-based log access)"
+
+# systemd-journal group grants journalctl read access without root
+if getent group systemd-journal &>/dev/null; then
+    usermod -aG systemd-journal "$TARGET_USER"
+    ok "$TARGET_USER added to 'systemd-journal' group (journald access)"
+else
+    warn "'systemd-journal' group not found — journald fallback unavailable (non-systemd system)"
+fi
+
+warn "Re-login (or run 'newgrp adm') for group membership to take effect"
 
 # ── 4. SQLite database ────────────────────────────────────────────────────────
 step "Database"

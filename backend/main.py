@@ -21,6 +21,7 @@ import collect
 import parser as log_parser
 import detection
 import db as hids_db
+from sources import detect_sources
 
 POLL_INTERVAL = 30
 
@@ -85,6 +86,13 @@ def main():
     signal.signal(signal.SIGTERM, _handle_signal)
     signal.signal(signal.SIGINT, _handle_signal)
     log.info('HIDS daemon starting (poll interval: %ds).', POLL_INTERVAL)
+
+    sources = detect_sources()
+    if sources:
+        for s in sources:
+            log.info('Log source detected: [%s] %s', s['type'], s['id'])
+    else:
+        log.warning('No log sources detected — will retry each poll cycle.')
 
     while _running:
         try:
