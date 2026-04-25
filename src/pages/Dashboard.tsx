@@ -70,7 +70,7 @@ export default function Dashboard() {
                 tick={{ fill: '#64748B', fontSize: 12, fontWeight: 600 }} interval={1} />
               <Tooltip contentStyle={{ borderRadius: '0.5rem', border: '1px solid #E2E8F0' }} />
               <Area type="monotone" dataKey="count" stroke="#CBD5E1" strokeWidth={2}
-                fillOpacity={1} fill="url(#colorCount)" />
+                fillOpacity={1} fill="url(#colorCount)" isAnimationActive={false} />
             </AreaChart>
           </ResponsiveContainer>
         </div>

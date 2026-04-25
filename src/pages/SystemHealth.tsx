@@ -72,7 +72,6 @@ export default function SystemHealth() {
         </div>
         <div className="rounded-full bg-gray-100 overflow-hidden h-3">
           <motion.div
-            initial={{ width: 0 }}
             animate={{ width: totalCount > 0 ? `${(onlineCount / totalCount) * 100}%` : '0%' }}
             className="h-full bg-brand-success"
           />

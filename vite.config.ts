@@ -17,6 +17,12 @@ export default defineConfig(({mode}) => {
     },
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',
+      watch: {
+        // Ignore runtime data files written by the daemon every 30 s.
+        // Without this, inotify fires on offsets.json changes and Vite
+        // sends a full-reload to the browser (unknown-module fallback).
+        ignored: ['**/backend/offsets.json', '**/*.db', '**/*.db-wal', '**/*.db-shm'],
+      },
       proxy: {
         '/api': {
           target: 'http://localhost:3001',
