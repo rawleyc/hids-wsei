@@ -43,10 +43,11 @@ def _handle_signal(signum, frame):
 
 def run_once():
     sources   = detect_sources()
-    new_lines = collect.collect_all()
+    new_lines    = collect.collect_all()
+    lines_read   = len(new_lines)
 
-    if new_lines:
-        log.info('Collected %d new log lines.', len(new_lines))
+    if lines_read:
+        log.info('Collected %d new log lines.', lines_read)
 
     conn = hids_db.get_connection()
 
@@ -76,7 +77,7 @@ def run_once():
             hids_db.update_log_source(conn, node_id, count)
             hids_db.insert_diagnostic_log(
                 conn, node_id, 'INFO',
-                f'Poll complete — {count} new event(s), {alerts_created} alert(s) created',
+                f'Poll complete — {lines_read} line(s) read, {count} security event(s) parsed, {alerts_created} alert(s) created',
             )
 
         conn.commit()

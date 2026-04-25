@@ -63,12 +63,14 @@ def _collect_journald(offsets: dict) -> list:
     """Read new journald entries using cursor tracking (raw JSON strings)."""
     cursor = offsets.get(JOURNALD_CURSOR_KEY)
 
-    cmd = ['journalctl', '-o', 'json', '--no-pager', '-n', '500']
     if cursor:
-        cmd += ['--after-cursor', cursor]
+        cmd = ['journalctl', '-o', 'json', '--no-pager', '-n', '500',
+               '--after-cursor', cursor]
     else:
-        # First run: skip history, start from now
-        cmd += ['--since', 'now']
+        # First run: seed from recent history so the dashboard has data immediately.
+        # --since now always returns 0 lines (journalctl exits before anything logs),
+        # so the cursor was never saved and every poll was stuck retrying.
+        cmd = ['journalctl', '-o', 'json', '--no-pager', '-n', '200']
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
@@ -82,8 +84,8 @@ def _collect_journald(offsets: dict) -> list:
 
     # Advance cursor to last received entry
     try:
-        last        = json.loads(lines[-1])
-        new_cursor  = last.get('__CURSOR')
+        last       = json.loads(lines[-1])
+        new_cursor = last.get('__CURSOR')
         if new_cursor:
             offsets[JOURNALD_CURSOR_KEY] = new_cursor
     except (json.JSONDecodeError, KeyError):
