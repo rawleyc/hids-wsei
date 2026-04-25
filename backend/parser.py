@@ -22,8 +22,10 @@ def _now_iso() -> str:
 
 # ── Core classifiers (shared by both file and journald paths) ─────────────────
 
-def _classify_auth(process: str, pid: str, msg: str) -> dict | None:
+def _classify_auth(process: str, pid: str, msg: str, event_time: str | None = None) -> dict | None:
     """Classify an auth-related message into a normalized event dict."""
+    ts = event_time or _now_iso()
+
     if 'sshd' in process:
         for regex, event_type, severity in [
             (_FAILED,   'failed_login',  'Warning'),
@@ -38,7 +40,7 @@ def _classify_auth(process: str, pid: str, msg: str) -> dict | None:
                     event_type = 'root_login_failure'
                     severity   = 'Critical'
                 return {
-                    'event_time': _now_iso(),
+                    'event_time': ts,
                     'source':     'auth',
                     'event_type': event_type,
                     'user':       user,
@@ -51,7 +53,7 @@ def _classify_auth(process: str, pid: str, msg: str) -> dict | None:
         fm = _SUDO.search(msg)
         if fm:
             return {
-                'event_time': _now_iso(),
+                'event_time': ts,
                 'source':     'auth',
                 'event_type': 'sudo_escalation',
                 'user':       fm.group('user'),
@@ -64,7 +66,7 @@ def _classify_auth(process: str, pid: str, msg: str) -> dict | None:
         fm = _USERADD.search(msg)
         if fm:
             return {
-                'event_time': _now_iso(),
+                'event_time': ts,
                 'source':     'auth',
                 'event_type': 'user_created',
                 'user':       fm.group('user'),
@@ -76,11 +78,11 @@ def _classify_auth(process: str, pid: str, msg: str) -> dict | None:
     return None
 
 
-def _classify_syslog(process: str, pid: str, msg: str) -> dict | None:
+def _classify_syslog(process: str, pid: str, msg: str, event_time: str | None = None) -> dict | None:
     """Classify a syslog-style message — surfaces security-relevant keywords only."""
     if any(k in msg.lower() for k in ('error', 'fail', 'denied', 'attack', 'invalid')):
         return {
-            'event_time': _now_iso(),
+            'event_time': event_time or _now_iso(),
             'source':     'syslog',
             'event_type': 'syslog_error',
             'user':       '',
@@ -136,14 +138,22 @@ def parse_journald_entry(json_str: str) -> dict | None:
     comm = (entry.get('SYSLOG_IDENTIFIER') or entry.get('_COMM', '')).strip()
     pid  = str(entry.get('_PID', '0'))
 
+    # Use the actual event timestamp from journald (microseconds since epoch)
+    # Fall back to current time if field is missing or malformed
+    try:
+        ts_us      = int(entry['__REALTIME_TIMESTAMP'])
+        event_time = datetime.utcfromtimestamp(ts_us / 1_000_000).strftime('%Y-%m-%d %H:%M:%S')
+    except (KeyError, ValueError, TypeError):
+        event_time = _now_iso()
+
     # Route to auth classifier first for known auth processes
     if any(p in comm for p in _AUTH_PROCS):
-        result = _classify_auth(comm, pid, message)
+        result = _classify_auth(comm, pid, message, event_time)
         if result:
             return result
 
     # Fall through to syslog classifier (catches kernel / systemd / other daemons)
-    return _classify_syslog(comm, pid, message)
+    return _classify_syslog(comm, pid, message, event_time)
 
 
 # ── Unified entry point ───────────────────────────────────────────────────────

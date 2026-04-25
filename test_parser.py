@@ -137,6 +137,21 @@ class TestJournaldParser(unittest.TestCase):
         r = self._j('NetworkManager', 777, 'device wlan0 connected to WiFi')
         self.assertIsNone(r)
 
+    def test_journald_realtime_timestamp_used(self):
+        """__REALTIME_TIMESTAMP (µs since epoch) must become event_time, not processing time."""
+        import time
+        # Use a fixed timestamp: 2024-01-15 10:30:00 UTC = 1705312200 seconds
+        ts_us = 1705312200 * 1_000_000
+        entry = json.dumps({
+            'SYSLOG_IDENTIFIER': 'sshd',
+            '_PID': '1',
+            'MESSAGE': 'Failed password for root from 1.2.3.4 port 22 ssh2',
+            '__REALTIME_TIMESTAMP': str(ts_us),
+        })
+        r = parse_journald_entry(entry)
+        self.assertIsNotNone(r)
+        self.assertEqual(r['event_time'], '2024-01-15 10:30:00')
+
     def test_journald_invalid_json_returns_none(self):
         self.assertIsNone(parse_journald_entry('not json at all'))
 
