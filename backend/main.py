@@ -42,11 +42,12 @@ def _handle_signal(signum, frame):
 
 
 def run_once():
+    sources   = detect_sources()
     new_lines = collect.collect_all()
-    if not new_lines:
-        return
 
-    log.info('Collected %d new log lines.', len(new_lines))
+    if new_lines:
+        log.info('Collected %d new log lines.', len(new_lines))
+
     conn = hids_db.get_connection()
 
     try:
@@ -68,8 +69,10 @@ def run_once():
             node_id = os.path.basename(source_file)
             source_counts[node_id] = source_counts.get(node_id, 0) + 1
 
-        for node_id, count in source_counts.items():
-            hids_db.update_log_source(conn, node_id, count)
+        # Heartbeat: update every active source even when quiet (keeps agents online)
+        for source in sources:
+            node_id = os.path.basename(source['id'])
+            hids_db.update_log_source(conn, node_id, source_counts.get(node_id, 0))
 
         conn.commit()
         if alerts_created:

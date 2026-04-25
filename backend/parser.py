@@ -13,7 +13,7 @@ _FAILED   = re.compile(r'Failed \w+ for (?:invalid user )?(?P<user>\S+) from (?P
 _ACCEPTED = re.compile(r'Accepted \w+ for (?P<user>\S+) from (?P<ip>[\d.]+)')
 _INVALID  = re.compile(r'Invalid user (?P<user>\S+) from (?P<ip>[\d.]+)')
 _SUDO     = re.compile(r'(?P<user>\S+)\s+:.*COMMAND=(?P<cmd>.+)')
-_USERADD  = re.compile(r'new user: name=(?P<user>\S+)')
+_USERADD  = re.compile(r'new user: name=(?P<user>[^,\s]+)')
 
 
 def _now_iso() -> str:
