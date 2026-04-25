@@ -72,7 +72,12 @@ def run_once():
         # Heartbeat: update every active source even when quiet (keeps agents online)
         for source in sources:
             node_id = os.path.basename(source['id'])
-            hids_db.update_log_source(conn, node_id, source_counts.get(node_id, 0))
+            count    = source_counts.get(node_id, 0)
+            hids_db.update_log_source(conn, node_id, count)
+            hids_db.insert_diagnostic_log(
+                conn, node_id, 'INFO',
+                f'Poll complete — {count} new event(s), {alerts_created} alert(s) created',
+            )
 
         conn.commit()
         if alerts_created:
@@ -81,6 +86,14 @@ def run_once():
     except Exception as exc:
         conn.rollback()
         log.exception('Pipeline error: %s', exc)
+        try:
+            for source in sources:
+                hids_db.insert_diagnostic_log(
+                    conn, os.path.basename(source['id']), 'ERROR', str(exc)
+                )
+            conn.commit()
+        except Exception:
+            pass
     finally:
         conn.close()
 

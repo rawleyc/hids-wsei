@@ -13,9 +13,13 @@ export default function Dashboard() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
 
   useEffect(() => {
-    Promise.all([fetchStats(), fetchAlerts({ limit: 10 })])
-      .then(([s, a]) => { setStats(s); setAlerts(a.data); })
-      .catch(console.error);
+    const load = () =>
+      Promise.all([fetchStats(), fetchAlerts({ limit: 10 })])
+        .then(([s, a]) => { setStats(s); setAlerts(a.data); })
+        .catch(console.error);
+    load();
+    const id = setInterval(load, 30_000);
+    return () => clearInterval(id);
   }, []);
 
   const chartData = stats?.chart_data ?? [];

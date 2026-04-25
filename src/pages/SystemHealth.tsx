@@ -84,7 +84,6 @@ export default function SystemHealth() {
         {agents.map((agent) => (
           <motion.div
             key={agent.id}
-            layoutId={agent.id}
             onClick={() => setSelectedAgent(agent.id)}
             className={clsx(
               'bg-white rounded-xl p-5 border shadow-sm transition-all duration-200 cursor-pointer group hover:shadow-md hover:-translate-y-0.5',
